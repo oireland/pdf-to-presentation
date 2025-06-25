@@ -9,8 +9,12 @@ import google.generativeai as genai
 from pptx import Presentation
 import json
 import io
+from dotenv import load_dotenv # Import the dotenv library
 
 # --- Configuration ---
+# Load environment variables from the .env file
+load_dotenv()
+
 # Create a FastAPI app instance
 app = FastAPI(title="PDF to Presentation API")
 
@@ -36,23 +40,75 @@ except KeyError:
 
 # --- Helper Functions (We will build these out later) ---
 
-def extract_text_from_pdf(file_stream):
-    """Extracts text content from a PDF file stream."""
-    # This is a placeholder for now. We will implement this in the next step.
-    print("Placeholder: Extracting text from PDF...")
-    return "This is placeholder text from the PDF."
+def extract_text_from_pdf(pdf_content: bytes) -> str:
+    """Extracts text content from a PDF file's bytes."""
+    full_text = ""
+    # Open the PDF from the in-memory bytes
+    with fitz.open(stream=pdf_content, filetype="pdf") as doc:
+        # Iterate through each page of the PDF
+        for page in doc:
+            # Extract text from the page
+            full_text += page.get_text()
+
+    print(f"Successfully extracted {len(full_text)} characters from the PDF.")
+    return full_text
 
 
-def generate_slides_content_with_gemini(text):
+def generate_slides_content_with_gemini(text: str) -> list:
     """Uses Gemini to generate presentation content from text."""
-    # This is a placeholder for now. We will implement this in the next step.
-    print("Placeholder: Generating content with Gemini...")
-    # This is the kind of structured data we expect from the AI
-    slide_data = [
-        {"title": "Slide 1 Title", "bullets": ["Point 1", "Point 2"]},
-        {"title": "Slide 2 Title", "bullets": ["Point A", "Point B"]},
-    ]
-    return slide_data
+    print("Generating slide content with Gemini...")
+
+    # Initialize the Generative Model
+    # Using gemini-2.0-flash as it is fast and capable for this task
+    model = genai.GenerativeModel('gemini-2.0-flash')
+
+    # This is the prompt that instructs the AI. It's carefully designed
+    # to request a specific JSON output format.
+    prompt = f"""
+    Based on the following text from a report, please generate a summary presentation.
+    The output should be a valid JSON object.
+
+    The JSON object must be a single list `[]` containing multiple slide objects `{{}}`.
+
+    Each slide object must have two keys:
+    1. "title": A string for the slide's title (maximum 10 words).
+    2. "bullets": A list of strings, where each string is a key takeaway or bullet point (maximum 3 bullet points per slide).
+
+    Summarize the key points and structure them logically for a presentation.
+
+    Here is the text:
+    ---
+    {text}
+    ---
+    """
+
+    try:
+        # Generate content using the model
+        response = model.generate_content(prompt)
+
+        # Clean up the response to ensure it's valid JSON.
+        # The model sometimes wraps the JSON in ```json ... ```
+        response_text = response.text.strip().replace("```json", "").replace("```", "")
+
+        # Parse the JSON string into a Python list
+        slide_data = json.loads(response_text)
+
+        # Basic validation of the returned structure
+        if not isinstance(slide_data, list):
+            raise ValueError("AI response is not a list.")
+        if any("title" not in s or "bullets" not in s for s in slide_data):
+            raise ValueError("AI response is missing required keys ('title', 'bullets').")
+
+        print("Successfully generated and parsed slide data from Gemini.")
+        return slide_data
+
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"Error parsing AI response: {e}")
+        print(f"Raw AI response was:\n{response.text}")
+        raise HTTPException(status_code=500, detail="Failed to parse valid slide structure from AI response.")
+    except Exception as e:
+        print(f"An unexpected error occurred with the Gemini API: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred while generating content with the AI.")
 
 
 def create_presentation(slide_data):
@@ -98,26 +154,25 @@ async def generate_presentation_endpoint(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Invalid file type. Please upload a PDF.")
 
     try:
-        # --- Core Logic (will be fully implemented later) ---
-        # 1. Extract text from PDF
-        # Note: We will replace this with the real implementation
-        text_content = extract_text_from_pdf(None)  # Passing None for now
-
-        # 2. Generate slide content with Gemini
-        # Note: We will replace this with the real implementation
+        pdf_contents = await file.read()
+        text_content = extract_text_from_pdf(pdf_contents)
         slides = generate_slides_content_with_gemini(text_content)
 
         # 3. Create the .pptx file in memory
         pptx_file_stream = create_presentation(slides)
 
-        # In a real implementation, we would send this back.
-        # For now, we'll return a success message.
-        print("Successfully created presentation stream.")
+        print("Returning AI-generated JSON to the client for verification.")
+        return JSONResponse(status_code=200, content=slides)
 
-        return JSONResponse(
-            status_code=200,
-            content={"message": "Presentation generated successfully! (This is a placeholder response)"}
-        )
+        # # In a real implementation, we would send this back.
+        # # For now, we'll return a success message.
+        # print("Successfully created presentation stream.")
+        #
+        # # This will be updated later to send the actual file
+        # return JSONResponse(
+        #     status_code=200,
+        #     content={"message": "Presentation generated successfully! (This is a placeholder response)"}
+        # )
 
     except Exception as e:
         # Generic error handling

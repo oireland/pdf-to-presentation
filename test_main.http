@@ -1,11 +1,19 @@
-# Test your FastAPI endpoints
-
+### Test the root endpoint to ensure the server is running
 GET http://127.0.0.1:8000/
 Accept: application/json
 
 ###
+### Test the presentation generation endpoint by uploading a PDF
+POST http://127.0.0.1:8000/api/generate-presentation
+Content-Type: multipart/form-data; boundary=boundary
 
-GET http://127.0.0.1:8000/hello/User
-Accept: application/json
+--boundary
+# IMPORTANT: Replace the path below with the actual path to a PDF file on your computer.
+# The 'file' name corresponds to the `file: UploadFile = File(...)` parameter in the Python code.
+Content-Disposition: form-data; name="file"; filename="report.pdf"
+Content-Type: application/pdf
 
-###
+< C:\Users\irela\PycharmProjects\presentation_generator_backend\files\armv8.pdf
+
+--boundary--
+
