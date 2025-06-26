@@ -9,66 +9,62 @@ import google.generativeai as genai
 from pptx import Presentation
 import json
 import io
-from dotenv import load_dotenv # Import the dotenv library
+from dotenv import load_dotenv
+from pydantic import BaseModel, Field
+from typing import List
+from pptx.dml.color import RGBColor
+
+# --- Models ---
+class Slide(BaseModel):
+    title: str = Field(..., description="The title of the slide (maximum 10 words)")
+    bullets: List[str] = Field(..., description="List of bullet points (maximum 3 per slide)")
+
+class PresentationContent(BaseModel):
+    slides: List[Slide] = Field(..., description="List of slides for the presentation")
+    background: str = Field(None, description="Background for slides. Can be a hex color code (e.g., '#FFFFFF'), a predefined color name (blue, light_blue, dark_blue, green, light_green, dark_green, red, light_red, dark_red, yellow, purple, orange, pink, gray, light_gray, dark_gray, black, white), or an image filename from the backgrounds directory (e.g., 'blue_gradient.jpg', 'green_gradient.jpg', 'geometric_pattern.jpg')")
 
 # --- Configuration ---
-# Load environment variables from the .env file
 load_dotenv()
-
-# Create a FastAPI app instance
 app = FastAPI(title="PDF to Presentation API")
 
-# Configure CORS (Cross-Origin Resource Sharing)
-# This allows your React frontend to communicate with this backend.
-# IMPORTANT: For production, you should restrict the origins to your frontend's domain.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins for now
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Configure the Google Gemini API key
 try:
-    genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
-except KeyError:
-    # This provides a helpful error message if the key is not set.
-    print("ERROR: GOOGLE_API_KEY environment variable not set.")
-    # In a real app, you might want to exit or disable AI features.
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        raise ValueError("GOOGLE_API_KEY environment variable not set.")
+    genai.configure(api_key=api_key)
+except ValueError as e:
+    print(f"ERROR: {e}")
 
 
-# --- Helper Functions (We will build these out later) ---
+# --- Helper Functions ---
 
 def extract_text_from_pdf(pdf_content: bytes) -> str:
     """Extracts text content from a PDF file's bytes."""
     full_text = ""
-    # Open the PDF from the in-memory bytes
     with fitz.open(stream=pdf_content, filetype="pdf") as doc:
-        # Iterate through each page of the PDF
         for page in doc:
-            # Extract text from the page
             full_text += page.get_text()
-
     print(f"Successfully extracted {len(full_text)} characters from the PDF.")
     return full_text
 
 
-def generate_slides_content_with_gemini(text: str) -> list:
+def generate_slides_content_with_gemini(text: str) -> List[Slide]:
     """Uses Gemini to generate presentation content from text."""
     print("Generating slide content with Gemini...")
-
-    # Initialize the Generative Model
-    # Using gemini-2.0-flash as it is fast and capable for this task
     model = genai.GenerativeModel('gemini-2.0-flash')
-
-    # This is the prompt that instructs the AI. It's carefully designed
-    # to request a specific JSON output format.
     prompt = f"""
     Based on the following text from a report, please generate a summary presentation.
     The output should be a valid JSON object.
 
-    The JSON object must be a single list `[]` containing multiple slide objects `{{}}`.
+    The JSON object must be a single list `[]` containing multiple slide objects {{}}.
 
     Each slide object must have two keys:
     1. "title": A string for the slide's title (maximum 10 words).
@@ -81,84 +77,161 @@ def generate_slides_content_with_gemini(text: str) -> list:
     {text}
     ---
     """
-
     try:
-        # Generate content using the model
         response = model.generate_content(prompt)
-
-        # Clean up the response to ensure it's valid JSON.
-        # The model sometimes wraps the JSON in ```json ... ```
         response_text = response.text.strip().replace("```json", "").replace("```", "")
+        raw_slide_data = json.loads(response_text)
 
-        # Parse the JSON string into a Python list
-        slide_data = json.loads(response_text)
-
-        # Basic validation of the returned structure
-        if not isinstance(slide_data, list):
+        if not isinstance(raw_slide_data, list):
             raise ValueError("AI response is not a list.")
-        if any("title" not in s or "bullets" not in s for s in slide_data):
+        if raw_slide_data and any("title" not in s or "bullets" not in s for s in raw_slide_data):
             raise ValueError("AI response is missing required keys ('title', 'bullets').")
+
+        # Convert raw dictionaries to Slide objects
+        slide_data = [Slide(title=slide["title"], bullets=slide["bullets"]) for slide in raw_slide_data]
 
         print("Successfully generated and parsed slide data from Gemini.")
         return slide_data
-
-    except (json.JSONDecodeError, ValueError) as e:
-        print(f"Error parsing AI response: {e}")
-        print(f"Raw AI response was:\n{response.text}")
-        raise HTTPException(status_code=500, detail="Failed to parse valid slide structure from AI response.")
     except Exception as e:
-        print(f"An unexpected error occurred with the Gemini API: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred while generating content with the AI.")
+        print(f"An error occurred during Gemini content generation: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate or parse content from AI.")
 
+def set_slide_background_image(prs, slide, image_path):
+    """
+    Sets the background of a slide to an image by adding a full-slide picture
+    and sending it to the back.
 
-def create_presentation(slide_data: list) -> io.BytesIO:
-    """Creates a PowerPoint presentation from structured data."""
-    print("Creating PowerPoint file...")
+    WARNING: This method uses internal, non-public APIs of python-pptx (e.g., _spTree).
+    This means it is subject to breaking changes in future versions of the library
+    without prior notice. Use with caution and be prepared to update your code.
+
+    Args:
+        prs (pptx.presentation.Presentation): The presentation object.
+        slide (pptx.slide.Slide): The slide object to modify.
+        image_path (str): The path to the image file.
+    """
+    left = top = 0
+    width = prs.slide_width
+    height = prs.slide_height
+
+    # Add the picture to the slide, covering the entire area
+    pic = slide.shapes.add_picture(image_path, left, top, width, height)
+
+    # --- START OF INTERNAL API USAGE ---
+    # These lines manipulate the internal XML structure (shape tree)
+    # to change the Z-order of the picture. This is not part of the
+    # public API and might break in future python-pptx versions.
+    try:
+        # Accessing shape_id forces the shape to be created in the XML tree
+        _ = pic.shape_id
+        # Remove the picture element from its current position
+        slide.shapes._spTree.remove(pic._element)
+        # Insert it at index 2 to send it to the back
+        # (index 0 and 1 are usually for XML declaration and other core elements)
+        slide.shapes._spTree.insert(2, pic._element)
+    except AttributeError:
+        # Fallback if internal structure changes dramatically (unlikely for _element)
+        print("Warning: Could not manipulate Z-order using internal APIs. "
+              "Image might not be at the back.")
+    # --- END OF INTERNAL API USAGE ---
+
+def create_presentation(slide_data: List[Slide], background: str = None) -> io.BytesIO:
+    """Creates a PowerPoint presentation from structured data with optional background."""
+    print("Creating a new blank presentation...")
+
+    # Create a new presentation object from scratch
     prs = Presentation()
-    # Use a wider slide format (16:9)
+    # Set a standard widescreen format
     prs.slide_width = 9144000
     prs.slide_height = 5143500
 
-    # Title Slide Layout
-    title_slide_layout = prs.slide_layouts[0]
-    slide = prs.slides.add_slide(title_slide_layout)
-    title = slide.shapes.title
-    subtitle = slide.placeholders[1]
-    title.text = slide_data[0].get("title", "Presentation") if slide_data else "Presentation"
-    subtitle.text = "Generated by AI"
+    # Use the standard "Title and Content" layout
+    title_and_content_layout = prs.slide_layouts[1]
 
-    # Content Slides
+    # Predefined color map for named colors
+    color_map = {
+        "blue": "0000FF",
+        "light_blue": "ADD8E6",
+        "dark_blue": "00008B",
+        "green": "008000",
+        "light_green": "90EE90",
+        "dark_green": "006400",
+        "red": "FF0000",
+        "light_red": "FFA07A",
+        "dark_red": "8B0000",
+        "yellow": "FFFF00",
+        "purple": "800080",
+        "orange": "FFA500",
+        "pink": "FFC0CB",
+        "gray": "808080",
+        "light_gray": "D3D3D3",
+        "dark_gray": "A9A9A9",
+        "black": "000000",
+        "white": "FFFFFF",
+    }
+
     for slide_info in slide_data:
-        slide_layout = prs.slide_layouts[1]  # Title and Content layout
-        slide = prs.slides.add_slide(slide_layout)
+        slide = prs.slides.add_slide(title_and_content_layout)
+
+        # Apply background if provided
+        if background:
+            # Check if background is a predefined color name
+            if background in color_map:
+                # Apply solid color background using predefined color
+                fill = slide.background.fill
+                fill.solid()
+                fill.fore_color.rgb = RGBColor.from_string(color_map[background])
+                print(f"Applied predefined color background: {background} ({color_map[background]})")
+            # Check if background is a hex color code
+            elif background.startswith('#') and (len(background) == 7 or len(background) == 9):
+                # Apply solid color background
+                fill = slide.background.fill
+                fill.solid()
+                fill.fore_color.rgb = RGBColor.from_string(background.lstrip('#'))
+                print(f"Applied custom color background: {background}")
+            # Check if background is an image filename
+            elif background.endswith(('.jpg', '.jpeg', '.png')):
+                # Check if the image exists in the backgrounds directory
+                image_path = os.path.join('backgrounds', background)
+                if os.path.exists(image_path):
+                    # Add the image as a background
+                    print(f"Applying image background: {background}")
+                    set_slide_background_image(prs, slide, image_path)
+
+                    print(f"Applied image background: {background}")
+                else:
+                    print(f"Image file not found: {image_path}. Using default background.")
+            else:
+                print(f"Unsupported background format: {background}. Using default background.")
+
+        # Get the title and body placeholders
         title = slide.shapes.title
         body = slide.placeholders[1]
-        title.text = slide_info.get("title", "No Title")
 
-        tf = body.text_frame
-        tf.clear()  # Clear existing text
-        for bullet in slide_info.get("bullets", []):
-            p = tf.add_paragraph()
-            p.text = bullet
-            p.level = 0
+        if title:
+            title.text = slide_info.title
 
-    # Save the presentation to an in-memory byte stream
+        if body:
+            tf = body.text_frame
+            tf.clear()
+            for bullet in slide_info.bullets:
+                p = tf.add_paragraph()
+                p.text = bullet
+                p.level = 0
+
     pptx_stream = io.BytesIO()
     prs.save(pptx_stream)
-    pptx_stream.seek(0)  # Rewind the stream to the beginning
+    pptx_stream.seek(0)
     return pptx_stream
 
 
-# --- API Endpoint ---
-
-@app.post("/api/generate-presentation")
-@app.post("/api/generate-presentation")
-async def generate_presentation_endpoint(file: UploadFile = File(...)):
+# --- API Endpoints ---
+@app.post("/api/generate-slide-content")
+async def generate_slide_content(file: UploadFile = File(...)) -> PresentationContent:
     """
-    This endpoint receives a PDF file, processes it, and returns a
-    PowerPoint presentation.
+    This endpoint receives a PDF file, processes it, and returns the proposed slide content as JSON.
     """
-    print(f"Received file: {file.filename} ({file.content_type})")
+    print(f"Received file: {file.filename}")
 
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Invalid file type. Please upload a PDF.")
@@ -166,32 +239,50 @@ async def generate_presentation_endpoint(file: UploadFile = File(...)):
     try:
         pdf_contents = await file.read()
 
-        # --- Core Logic Pipeline ---
-        # 1. Extract text from PDF
         text_content = extract_text_from_pdf(pdf_contents)
-
-        # 2. Generate slide content with Gemini
         slides = generate_slides_content_with_gemini(text_content)
 
-        # 3. Create the .pptx file in memory
-        pptx_file_stream = create_presentation(slides)
+        # Create a Presentation_Content object
+        presentation_content = PresentationContent(slides=slides)
 
-        # 4. Return the file as a streaming response
-        print("Sending .pptx file to client.")
+        print("Sending slide content to client.")
+        return presentation_content
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        print(f"An unexpected server error occurred: {e}")
+        raise HTTPException(status_code=500, detail=f"An unexpected server error occurred: {str(e)}")
+
+
+@app.post("/api/generate-presentation")
+async def generate_presentation_endpoint(presentation_content: PresentationContent):
+    """
+    This endpoint receives slide content directly, creates a PowerPoint presentation,
+    and returns it as a downloadable file.
+    """
+    print(f"Received presentation content with {len(presentation_content.slides)} slides")
+    if presentation_content.background:
+        print(f"Using background: {presentation_content.background}")
+
+
+    try:
+        pptx_file_stream = create_presentation(
+            presentation_content.slides, 
+            background=presentation_content.background
+        )
+
+        print("Sending PowerPoint presentation to client.")
         return StreamingResponse(
             pptx_file_stream,
             media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
             headers={"Content-Disposition": f"attachment; filename=presentation.pptx"}
         )
-
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        print(f"An unexpected error occurred in the endpoint: {e}")
+        print(f"An unexpected server error occurred: {e}")
         raise HTTPException(status_code=500, detail=f"An unexpected server error occurred: {str(e)}")
 
 @app.get("/")
-def read_root():
-    """A simple root endpoint to confirm the server is running."""
-    return {"message": "Welcome to the Presentation Generator API!"}
-
+async def root():
+    return {"message": "Welcome to the PDF to Presentation API!"}

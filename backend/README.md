@@ -72,14 +72,60 @@ The server will be running at `http://127.0.0.1:8000`.
 
 ---
 
-## API Endpoint
+## API Endpoints
 
-### `POST /api/generate-presentation`
+### `POST /api/generate-slide-content`
 
-This is the primary endpoint for the application.
+This endpoint processes a PDF file and generates slide content.
 
 -   **Request:** `multipart/form-data`
     -   **`file`**: The PDF file to be processed.
+-   **Successful Response (Status 200):**
+    -   **Body:** JSON object containing the generated slide content.
+    ```json
+    {
+      "slides": [
+        {
+          "title": "Slide Title",
+          "bullets": ["Bullet point 1", "Bullet point 2", "Bullet point 3"]
+        },
+        ...
+      ]
+    }
+    ```
+-   **Error Response (Status 4xx/5xx):**
+    -   **Body:** A JSON object with a `detail` key describing the error.
+    ```json
+    {
+      "detail": "Invalid file type. Please upload a PDF."
+    }
+    ```
+
+### `POST /api/generate-presentation`
+
+This endpoint creates a PowerPoint presentation from provided slide content.
+
+-   **Request:** `application/json`
+    -   **Body:**
+    ```json
+    {
+      "slides": [
+        {
+          "title": "Slide Title",
+          "bullets": ["Bullet point 1", "Bullet point 2", "Bullet point 3"]
+        },
+        ...
+      ],
+      "background": "light_blue"  // Optional: Predefined color or hex code
+    }
+    ```
+    -   **Parameters:**
+        -   **`slides`**: Array of slide objects, each with a title and bullets.
+        -   **`background`** (optional): Background for all slides. Can be:
+            -   A predefined color name: `blue`, `light_blue`, `dark_blue`, `green`, `light_green`, `dark_green`, `red`, `light_red`, `dark_red`, `yellow`, `purple`, `orange`, `pink`, `gray`, `light_gray`, `dark_gray`, `black`, `white`
+            -   A hex color code (e.g., `#FFFFFF` for white)
+            -   An image filename from the backgrounds directory (e.g., `blue_gradient.jpg`, `green_gradient.jpg`, `geometric_pattern.jpg`)
+
 -   **Successful Response (Status 200):**
     -   **Body:** The binary data of the generated `.pptx` file.
     -   **Headers:**
@@ -89,6 +135,6 @@ This is the primary endpoint for the application.
     -   **Body:** A JSON object with a `detail` key describing the error.
     ```json
     {
-      "detail": "Invalid file type. Please upload a PDF."
+      "detail": "An unexpected server error occurred."
     }
-    ````
+    ```

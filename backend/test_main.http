@@ -1,19 +1,117 @@
-### Test the root endpoint to ensure the server is running
+### Test the root endpoint
 GET http://127.0.0.1:8000/
 Accept: application/json
 
-###
-### Test the presentation generation endpoint by uploading a PDF
-POST http://127.0.0.1:8000/api/generate-presentation
+### Test the slide content generation endpoint
+POST http://127.0.0.1:8000/api/generate-slide-content
 Content-Type: multipart/form-data; boundary=boundary
 
 --boundary
-# IMPORTANT: Replace the path below with the actual path to a PDF file on your computer.
-# The 'file' name corresponds to the `file: UploadFile = File(...)` parameter in the Python code.
 Content-Disposition: form-data; name="file"; filename="report.pdf"
 Content-Type: application/pdf
 
-< C:\Users\irela\PycharmProjects\presentation_generator_backend\files\armv8.pdf
-
+< ./pdfs/armv8.pdf
 --boundary--
 
+### Test the presentation generation endpoint (default background)
+POST http://127.0.0.1:8000/api/generate-presentation
+Content-Type: application/json
+
+{
+  "slides": [
+    {
+      "title": "Introduction to ARM Architecture",
+      "bullets": [
+        "ARM is a family of RISC-based architectures",
+        "ARMv8 introduced 64-bit computing capabilities",
+        "Used in mobile devices, embedded systems, and servers"
+      ]
+    },
+    {
+      "title": "Key Features of ARMv8",
+      "bullets": [
+        "AArch64: New 64-bit execution state",
+        "Improved instruction set architecture",
+        "Enhanced security and virtualization support"
+      ]
+    }
+  ]
+}
+
+### Test the presentation generation endpoint with predefined color background
+POST http://127.0.0.1:8000/api/generate-presentation
+Content-Type: application/json
+
+{
+  "slides": [
+    {
+      "title": "Introduction to ARM Architecture",
+      "bullets": [
+        "ARM is a family of RISC-based architectures",
+        "ARMv8 introduced 64-bit computing capabilities",
+        "Used in mobile devices, embedded systems, and servers"
+      ]
+    },
+    {
+      "title": "Key Features of ARMv8",
+      "bullets": [
+        "AArch64: New 64-bit execution state",
+        "Improved instruction set architecture",
+        "Enhanced security and virtualization support"
+      ]
+    }
+  ],
+  "background": "pink"
+}
+
+### Test the presentation generation endpoint with hex color background
+POST http://127.0.0.1:8000/api/generate-presentation
+Content-Type: application/json
+
+{
+  "slides": [
+    {
+      "title": "Introduction to ARM Architecture",
+      "bullets": [
+        "ARM is a family of RISC-based architectures",
+        "ARMv8 introduced 64-bit computing capabilities",
+        "Used in mobile devices, embedded systems, and servers"
+      ]
+    },
+    {
+      "title": "Key Features of ARMv8",
+      "bullets": [
+        "AArch64: New 64-bit execution state",
+        "Improved instruction set architecture",
+        "Enhanced security and virtualization support"
+      ]
+    }
+  ],
+  "background": "#FF0000"
+}
+
+### Test the presentation generation endpoint with image background
+POST http://127.0.0.1:8000/api/generate-presentation
+Content-Type: application/json
+
+{
+  "slides": [
+    {
+      "title": "Introduction to ARM Architecture",
+      "bullets": [
+        "ARM is a family of RISC-based architectures",
+        "ARMv8 introduced 64-bit computing capabilities",
+        "Used in mobile devices, embedded systems, and servers"
+      ]
+    },
+    {
+      "title": "Key Features of ARMv8",
+      "bullets": [
+        "AArch64: New 64-bit execution state",
+        "Improved instruction set architecture",
+        "Enhanced security and virtualization support"
+      ]
+    }
+  ],
+  "background": "blue_gradient.jpg"
+}
