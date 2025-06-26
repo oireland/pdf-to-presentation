@@ -11,8 +11,9 @@ import json
 import io
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Literal
 from pptx.dml.color import RGBColor
+from theme_config import THEME_CONFIG
 
 # --- Models ---
 class Slide(BaseModel):
@@ -21,7 +22,8 @@ class Slide(BaseModel):
 
 class PresentationContent(BaseModel):
     slides: List[Slide] = Field(..., description="List of slides for the presentation")
-    background: str = Field(None, description="Background for slides. Can be a hex color code (e.g., '#FFFFFF'), a predefined color name (blue, light_blue, dark_blue, green, light_green, dark_green, red, light_red, dark_red, yellow, purple, orange, pink, gray, light_gray, dark_gray, black, white), or an image filename from the backgrounds directory (e.g., 'blue_gradient.jpg', 'green_gradient.jpg', 'geometric_pattern.jpg')")
+    theme_type: Literal["color", "background"] = Field(..., description="The type of theme to apply.")
+    theme_name: str = Field(..., description="The name of the theme to apply (e.g., 'classic_dark', 'blue_gradient').")
 
 # --- Configuration ---
 load_dotenv()
@@ -135,95 +137,87 @@ def set_slide_background_image(prs, slide, image_path):
               "Image might not be at the back.")
     # --- END OF INTERNAL API USAGE ---
 
-def create_presentation(slide_data: List[Slide], background: str = None) -> io.BytesIO:
-    """Creates a PowerPoint presentation from structured data with optional background."""
-    print("Creating a new blank presentation...")
+def create_presentation(slide_data: List[Slide], theme_type: str, theme_name: str) -> io.BytesIO:
+    """Creates a PowerPoint presentation from structured data using a predefined theme."""
+    print(f"Creating presentation with theme '{theme_name}' (type: {theme_type})")
 
-    # Create a new presentation object from scratch
     prs = Presentation()
-    # Set a standard widescreen format
     prs.slide_width = 9144000
     prs.slide_height = 5143500
-
-    # Use the standard "Title and Content" layout
     title_and_content_layout = prs.slide_layouts[1]
 
-    # Predefined color map for named colors
-    color_map = {
-        "blue": "0000FF",
-        "light_blue": "ADD8E6",
-        "dark_blue": "00008B",
-        "green": "008000",
-        "light_green": "90EE90",
-        "dark_green": "006400",
-        "red": "FF0000",
-        "light_red": "FFA07A",
-        "dark_red": "8B0000",
-        "yellow": "FFFF00",
-        "purple": "800080",
-        "orange": "FFA500",
-        "pink": "FFC0CB",
-        "gray": "808080",
-        "light_gray": "D3D3D3",
-        "dark_gray": "A9A9A9",
-        "black": "000000",
-        "white": "FFFFFF",
-    }
+    # Find the selected theme from the configuration
+    theme = None
+    if theme_type == "color":
+        theme = next((t for t in THEME_CONFIG["colors"] if t["name"] == theme_name), None)
+    elif theme_type == "background":
+        theme = next((t for t in THEME_CONFIG["backgrounds"] if t["name"] == theme_name), None)
+
+    if not theme:
+        print(f"Warning: Theme '{theme_name}' not found. Using default blank presentation.")
 
     for slide_info in slide_data:
         slide = prs.slides.add_slide(title_and_content_layout)
+        title_shape = slide.shapes.title
+        body_shape = slide.placeholders[1]
 
-        # Apply background if provided
-        if background:
-            # Check if background is a predefined color name
-            if background in color_map:
-                # Apply solid color background using predefined color
+        # Apply theme if a valid one was found
+        if theme:
+            if theme_type == "color":
+                # 1. Set background color (primary)
                 fill = slide.background.fill
                 fill.solid()
-                fill.fore_color.rgb = RGBColor.from_string(color_map[background])
-                print(f"Applied predefined color background: {background} ({color_map[background]})")
-            # Check if background is a hex color code
-            elif background.startswith('#') and (len(background) == 7 or len(background) == 9):
-                # Apply solid color background
-                fill = slide.background.fill
-                fill.solid()
-                fill.fore_color.rgb = RGBColor.from_string(background.lstrip('#'))
-                print(f"Applied custom color background: {background}")
-            # Check if background is an image filename
-            elif background.endswith(('.jpg', '.jpeg', '.png')):
-                # Check if the image exists in the backgrounds directory
-                image_path = os.path.join('backgrounds', background)
+                fill.fore_color.rgb = RGBColor.from_string(theme["primaryColor"])
+
+                # 2. Set title color (secondary)
+                if title_shape:
+                    title_shape.text_frame.paragraphs[0].font.color.rgb = RGBColor.from_string(theme["secondaryColor"])
+
+                # 3. Set body text color (text)
+                if body_shape:
+                     body_shape.text_frame.paragraphs[0].font.color.rgb = RGBColor.from_string(theme["textColor"])
+
+            elif theme_type == "background":
+                image_path = os.path.join('backgrounds', theme["image_filename"])
                 if os.path.exists(image_path):
-                    # Add the image as a background
-                    print(f"Applying image background: {background}")
                     set_slide_background_image(prs, slide, image_path)
-
-                    print(f"Applied image background: {background}")
+                    # Set default text colors for readability on image backgrounds
+                    if title_shape:
+                        title_shape.text_frame.paragraphs[0].font.color.rgb = RGBColor.from_string("FFFFFF")
+                    if body_shape:
+                        body_shape.text_frame.paragraphs[0].font.color.rgb = RGBColor.from_string("FFFFFF")
                 else:
-                    print(f"Image file not found: {image_path}. Using default background.")
-            else:
-                print(f"Unsupported background format: {background}. Using default background.")
+                    print(f"Warning: Background image not found at {image_path}. Using default.")
 
-        # Get the title and body placeholders
-        title = slide.shapes.title
-        body = slide.placeholders[1]
+        # Add content to slide
+        if title_shape:
+            title_shape.text = slide_info.title
+        if body_shape:
+            tf = body_shape.text_frame
+            tf.clear() # Clear existing text (like "Click to add text")
+            # Re-apply font color for paragraphs being added
+            if theme and theme_type == 'color':
+                tf.paragraphs[0].font.color.rgb = RGBColor.from_string(theme["textColor"])
+            elif theme and theme_type == 'background':
+                tf.paragraphs[0].font.color.rgb = RGBColor.from_string("FFFFFF")
 
-        if title:
-            title.text = slide_info.title
-
-        if body:
-            tf = body.text_frame
-            tf.clear()
-            for bullet in slide_info.bullets:
-                p = tf.add_paragraph()
-                p.text = bullet
+            for i, bullet_text in enumerate(slide_info.bullets):
+                if i == 0: # Use the first paragraph that's already there
+                    p = tf.paragraphs[0]
+                    p.text = bullet_text
+                else: # Add new paragraphs for subsequent bullets
+                    p = tf.add_paragraph()
+                    p.text = bullet_text
+                    if theme and theme_type == 'color':
+                        p.font.color.rgb = RGBColor.from_string(theme["textColor"])
+                    elif theme and theme_type == 'background':
+                        p.font.color.rgb = RGBColor.from_string("FFFFFF")
                 p.level = 0
 
     pptx_stream = io.BytesIO()
     prs.save(pptx_stream)
     pptx_stream.seek(0)
     return pptx_stream
-
 
 # --- API Endpoints ---
 @app.post("/api/generate-slide-content")
@@ -257,18 +251,14 @@ async def generate_slide_content(file: UploadFile = File(...)) -> PresentationCo
 @app.post("/api/generate-presentation")
 async def generate_presentation_endpoint(presentation_content: PresentationContent):
     """
-    This endpoint receives slide content directly, creates a PowerPoint presentation,
+    Receives slide content and a theme reference, creates a PowerPoint,
     and returns it as a downloadable file.
     """
-    print(f"Received presentation content with {len(presentation_content.slides)} slides")
-    if presentation_content.background:
-        print(f"Using background: {presentation_content.background}")
-
-
     try:
         pptx_file_stream = create_presentation(
-            presentation_content.slides, 
-            background=presentation_content.background
+            slide_data=presentation_content.slides,
+            theme_type=presentation_content.theme_type,
+            theme_name=presentation_content.theme_name
         )
 
         print("Sending PowerPoint presentation to client.")
