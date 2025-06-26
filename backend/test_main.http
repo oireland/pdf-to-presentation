@@ -1,117 +1,129 @@
-### Test the root endpoint
-GET http://127.0.0.1:8000/
-Accept: application/json
+# test_main.http
+#
+# Tests for the PDF to Presentation API.
+# Requires the VS Code REST Client extension.
+#
+# Before running:
+# 1. Make sure your FastAPI server is running (`uvicorn main:app --reload`).
+# 2. Create a dummy PDF file (e.g., `dummy.pdf`) in the same directory as this file.
+# 3. Create a dummy text file (e.g., `not_a_pdf.txt`) for testing error handling.
+# 4. Ensure you have a 'backgrounds' folder with the images specified in theme_config.py.
 
-### Test the slide content generation endpoint
-POST http://127.0.0.1:8000/api/generate-slide-content
-Content-Type: multipart/form-data; boundary=boundary
+@hostname = http://127.0.0.1:8000
 
---boundary
-Content-Disposition: form-data; name="file"; filename="report.pdf"
+###
+# Test 1: Root Endpoint
+# Checks if the API is running and reachable.
+GET {{hostname}}/
+Content-Type: application/json
+
+###
+# Test 2: Generate Slide Content from PDF
+# Uploads a PDF file and expects a JSON response with slide content
+# and a default theme.
+#
+POST {{hostname}}/api/generate-slide-content
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="simple-report.pdf"
 Content-Type: application/pdf
 
-< ./pdfs/armv8.pdf
---boundary--
+< ./files/simple-report.pdf
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
-### Test the presentation generation endpoint (default background)
-POST http://127.0.0.1:8000/api/generate-presentation
+
+###
+# Test 3: Generate Presentation with a COLOR Theme
+# Sends slide data and a "color" theme reference.
+# Expects a .pptx file as the response.
+#
+# To save the output, click "Send Request" and then "Save Response Body".
+# Save the file as "presentation-dark.pptx".
+POST {{hostname}}/api/generate-presentation
 Content-Type: application/json
 
 {
   "slides": [
     {
-      "title": "Introduction to ARM Architecture",
+      "title": "Corporate Strategy Q3",
       "bullets": [
-        "ARM is a family of RISC-based architectures",
-        "ARMv8 introduced 64-bit computing capabilities",
-        "Used in mobile devices, embedded systems, and servers"
+        "Review of Q2 performance metrics.",
+        "Key initiatives for the upcoming quarter.",
+        "Updated financial projections."
       ]
     },
     {
-      "title": "Key Features of ARMv8",
+      "title": "Market Analysis",
       "bullets": [
-        "AArch64: New 64-bit execution state",
-        "Improved instruction set architecture",
-        "Enhanced security and virtualization support"
-      ]
-    }
-  ]
-}
-
-### Test the presentation generation endpoint with predefined color background
-POST http://127.0.0.1:8000/api/generate-presentation
-Content-Type: application/json
-
-{
-  "slides": [
-    {
-      "title": "Introduction to ARM Architecture",
-      "bullets": [
-        "ARM is a family of RISC-based architectures",
-        "ARMv8 introduced 64-bit computing capabilities",
-        "Used in mobile devices, embedded systems, and servers"
-      ]
-    },
-    {
-      "title": "Key Features of ARMv8",
-      "bullets": [
-        "AArch64: New 64-bit execution state",
-        "Improved instruction set architecture",
-        "Enhanced security and virtualization support"
+        "Emerging trends and competitors.",
+        "Opportunities for market expansion.",
+        "Customer feedback summary."
       ]
     }
   ],
-  "background": "pink"
+  "theme_type": "color",
+  "theme_name": "classic_dark"
 }
 
-### Test the presentation generation endpoint with hex color background
-POST http://127.0.0.1:8000/api/generate-presentation
+
+###
+# Test 4: Generate Presentation with a BACKGROUND Theme
+# Sends slide data and a "background" theme reference.
+# Expects a .pptx file as the response.
+#
+# To save the output, click "Send Request" and then "Save Response Body".
+# Save the file as "presentation-gradient.pptx".
+POST {{hostname}}/api/generate-presentation
 Content-Type: application/json
 
 {
   "slides": [
     {
-      "title": "Introduction to ARM Architecture",
+      "title": "Project Phoenix Kick-off",
       "bullets": [
-        "ARM is a family of RISC-based architectures",
-        "ARMv8 introduced 64-bit computing capabilities",
-        "Used in mobile devices, embedded systems, and servers"
-      ]
-    },
-    {
-      "title": "Key Features of ARMv8",
-      "bullets": [
-        "AArch64: New 64-bit execution state",
-        "Improved instruction set architecture",
-        "Enhanced security and virtualization support"
+        "Project goals and objectives.",
+        "Team roles and responsibilities.",
+        "Timeline and key milestones."
       ]
     }
   ],
-  "background": "#FF0000"
+  "theme_type": "background",
+  "theme_name": "blue_gradient"
 }
 
-### Test the presentation generation endpoint with image background
-POST http://127.0.0.1:8000/api/generate-presentation
+
+###
+# Test 5: Error Handling - Invalid File Type
+# Attempts to upload a .txt file instead of a .pdf.
+# Expects a 400 Bad Request error from the server.
+POST {{hostname}}/api/generate-slide-content
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="not_a_pdf.txt"
+Content-Type: text/plain
+
+< ./files/not_a_pdf.txt
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+
+###
+# Test 6: Error Handling - Invalid Theme Name
+# Sends a theme_name that does not exist in the config.
+# The API should gracefully handle this by creating a default blank presentation,
+# still returning a 200 OK status.
+POST {{hostname}}/api/generate-presentation
 Content-Type: application/json
 
 {
   "slides": [
     {
-      "title": "Introduction to ARM Architecture",
-      "bullets": [
-        "ARM is a family of RISC-based architectures",
-        "ARMv8 introduced 64-bit computing capabilities",
-        "Used in mobile devices, embedded systems, and servers"
-      ]
-    },
-    {
-      "title": "Key Features of ARMv8",
-      "bullets": [
-        "AArch64: New 64-bit execution state",
-        "Improved instruction set architecture",
-        "Enhanced security and virtualization support"
-      ]
+      "title": "Test with Invalid Theme",
+      "bullets": ["This slide should have a default blank background."]
     }
   ],
-  "background": "blue_gradient.jpg"
+  "theme_type": "color",
+  "theme_name": "this_theme_does_not_exist"
 }
+
