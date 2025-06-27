@@ -22,6 +22,7 @@ Content-Type: application/json
 # Uploads a PDF file and expects a JSON response with slide content
 # and a default theme.
 #
+# Updated to send detail_level.
 POST {{hostname}}/api/generate-slide-content
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
 
@@ -30,6 +31,10 @@ Content-Disposition: form-data; name="file"; filename="simple-report.pdf"
 Content-Type: application/pdf
 
 < ./files/simple-report.pdf
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="detail_level"
+
+2
 ------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
 
@@ -127,3 +132,62 @@ Content-Type: application/json
   "theme_name": "this_theme_does_not_exist"
 }
 
+###
+# Test 7: Generate Presentation with a TEXT BLOCK (COLOR Theme)
+# Sends slide data with a 'text_block' and a "color" theme.
+# Expects a .pptx file as the response.
+#
+# To save the output, click "Send Request" and then "Save Response Body".
+# Save the file as "presentation-textblock-color.pptx".
+POST {{hostname}}/api/generate-presentation
+Content-Type: application/json
+
+{
+  "slides": [
+    {
+      "title": "A New Approach to Design",
+      "text_block": "Our latest design philosophy emphasizes user-centricity, minimalism, and adaptability. We believe that by focusing on these core principles, we can create experiences that are not only aesthetically pleasing but also highly functional and intuitive for all users. This approach will guide all future product development."
+    },
+    {
+      "title": "Implementation Strategy",
+      "bullets": [
+        "Phase 1: Research and conceptualization.",
+        "Phase 2: Prototyping and user testing.",
+        "Phase 3: Development and refinement.",
+        "Phase 4: Deployment and post-launch analysis."
+      ]
+    }
+  ],
+  "theme_type": "color",
+  "theme_name": "professional_gray"
+}
+
+###
+# Test 8: Generate Presentation with a TEXT BLOCK (BACKGROUND Theme)
+# Sends slide data with a 'text_block' and a "background" theme.
+# Expects a .pptx file as the response.
+#
+# To save the output, click "Send Request" and then "Save Response Body".
+# Save the file as "presentation-textblock-background.pptx".
+POST {{hostname}}/api/generate-presentation
+Content-Type: application/json
+
+{
+  "slides": [
+    {
+      "title": "The Future of AI Integration",
+      "text_block": "Artificial intelligence is poised to transform various industries, from healthcare to finance. Our focus is on developing ethical and efficient AI solutions that augment human capabilities rather than replace them. This will lead to unprecedented levels of productivity and innovation across sectors."
+    },
+    {
+      "title": "Ethical Considerations",
+      "bullets": [
+        "Ensuring data privacy and security.",
+        "Bias detection and mitigation in algorithms.",
+        "Transparent decision-making processes.",
+        "Responsible deployment and monitoring."
+      ]
+    }
+  ],
+  "theme_type": "background",
+  "theme_name": "blue_gradient"
+}
