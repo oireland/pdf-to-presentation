@@ -1,4 +1,7 @@
 import type { ThemeConfig } from "@/types/theme";
+import geometricPattern from "@/assets/geometric_pattern.jpg";
+import blueGradient from "@/assets/blue_gradient.jpg";
+import greenGradient from "@/assets/green_gradient.jpg";
 
 export const themeConfig: ThemeConfig = {
   colors: [
@@ -56,19 +59,19 @@ export const themeConfig: ThemeConfig = {
       type: "background",
       name: "blue_gradient",
       displayName: "Blue Gradient",
-      previewImage: "/placeholder.svg?height=80&width=120&text=Blue+Gradient",
+      previewImage: blueGradient,
     },
     {
       type: "background",
       name: "geometric_pattern",
       displayName: "Geometric Pattern",
-      previewImage: "/placeholder.svg?height=80&width=120&text=Geometric",
+      previewImage: geometricPattern,
     },
     {
       type: "background",
       name: "green_gradient",
       displayName: "Green Gradient",
-      previewImage: "/placeholder.svg?height=80&width=120&text=Green+Gradient",
+      previewImage: greenGradient,
     },
   ],
 };

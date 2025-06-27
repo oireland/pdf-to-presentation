@@ -5,6 +5,7 @@ const MOCK_DATA = true;
 
 export const processPDF = async (
   file: File,
+  detailLevel: number,
   onProgress: (progress: number) => void
 ): Promise<Slide[]> => {
   let currentProgress = 0;
@@ -17,43 +18,48 @@ export const processPDF = async (
   }, 200);
 
   try {
+    // Prepare form data for API call
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("detail_level", detailLevel.toString());
 
     // MOCK
     if (MOCK_DATA) {
       return [
         {
-          title: "Welcome to Our Presentation",
+          title: "Occam's Razor: Introduction",
           bullets: [
-            "Introduction to the main topic",
-            "Setting the stage for discussion",
-            "Overview of key objectives",
+            "Problem-solving principle attributed to William of Ockham.",
+            "Choose the hypothesis with fewest assumptions.",
+            "The simplest explanation is usually the best.",
           ],
         },
         {
-          title: "Key Points Overview",
+          title: "The Principle Explained: Shaving Away Assumptions",
+          text_block:
+            "Occam's Razor is a heuristic, not an irrefutable law. It suggests 'shaving away' unnecessary assumptions in theories. Simpler theories are preferable because they are more testable and easier to falsify, leading to more efficient problem-solving.",
+        },
+        {
+          title: "Application: The Case of the Missing Cookies",
           bullets: [
-            "First important point about our topic",
-            "Second crucial element to consider",
-            "Third aspect that drives our conclusion",
+            "Hypothesis A: Roommate ate the cookies (simple).",
+            "Hypothesis B: International spies stole cookies (complex).",
+            "Occam's Razor favors Hypothesis A.",
+            "Fewer assumptions make it the more plausible start",
           ],
         },
         {
-          title: "Detailed Analysis",
+          title: "Occam's Razor: A Valuable Tool",
           bullets: [
-            "Data shows compelling evidence",
-            "Supports our hypothesis effectively",
-            "Provides actionable insights",
+            "Encourages clarity and simplicity in thinking.",
+            "Favors evidence-based explanations.",
+            "Rational starting point for investigation.",
           ],
         },
         {
-          title: "Conclusion & Next Steps",
-          bullets: [
-            "Implement the proposed solution",
-            "Monitor key metrics closely",
-            "Iterate based on feedback",
-          ],
+          title: "Conclusion: Simplicity as a Starting Point",
+          text_block:
+            "While the simplest answer isn't always right, Occam's Razor encourages us to start with the most rational and evidence-supported explanation. This approach helps to streamline problem-solving and avoid unnecessary complexity in our reasoning processes.",
         },
       ];
     }

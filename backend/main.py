@@ -24,7 +24,6 @@ class Slide(BaseModel):
     title: str = Field(..., description="The title of the slide (maximum 10 words)")
     bullets: List[str] = Field(None, description="List of bullet points for the slide")
     text_block: str = Field(None, description="A block of text for the slide instead of bullet points")
-    detail_level: int = Field(2, description="Level of detail (0-4): 0=very concise, 1=concise, 2=normal, 3=detailed, 4=very detailed")
 
 
 class SlideContent(BaseModel):
@@ -149,7 +148,6 @@ def generate_slides_content_with_gemini(text: str, detail_level: int = 2) -> Lis
         for slide in raw_slide_data:
             slide_obj = Slide(
                 title=slide["title"],
-                detail_level=detail_level
             )
 
             # Set either bullets or text_block

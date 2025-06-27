@@ -6,11 +6,11 @@ import { UploadArea } from "@/components/upload-area";
 import { ProcessingIndicator } from "@/components/processing-indicator";
 import { SlideSidebar } from "@/components/slide-sidebar";
 import { SlideEditor } from "@/components/slide-editor";
+import { ThemeSelector } from "@/components/theme-selector";
 import { PowerPointGenerator } from "@/components/powerpoint-generator";
 import { processPDF, generatePowerPoint } from "@/lib/pdf-processing";
 import type { Slide } from "@/types/slide";
-import type { SelectedTheme } from "./types/theme";
-import { ThemeSelector } from "./components/theme-selector";
+import type { SelectedTheme } from "@/types/theme";
 import { ModeToggle } from "./components/mode-toggle";
 
 export default function App() {
@@ -25,28 +25,35 @@ export default function App() {
   const [generationProgress, setGenerationProgress] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
 
-  // Handle file upload
-  const handleFileUpload = useCallback(async (file: File) => {
-    if (file.type === "application/pdf") {
-      setIsProcessingPDF(true);
-      setProcessingProgress(0);
+  // Handle file upload with detail level
+  const handleFileUpload = useCallback(
+    async (file: File, detailLevel: number) => {
+      if (file.type === "application/pdf") {
+        setIsProcessingPDF(true);
+        setProcessingProgress(0);
 
-      try {
-        const extractedSlides = await processPDF(file, setProcessingProgress);
-        setSlides(extractedSlides);
-        setCurrentSlideIndex(0);
-      } catch (error) {
-        console.error("Error processing PDF:", error);
-      } finally {
-        setTimeout(() => {
-          setIsProcessingPDF(false);
-          setProcessingProgress(0);
-        }, 500);
+        try {
+          const extractedSlides = await processPDF(
+            file,
+            detailLevel,
+            setProcessingProgress
+          );
+          setSlides(extractedSlides);
+          setCurrentSlideIndex(0);
+        } catch (error) {
+          console.error("Error processing PDF:", error);
+        } finally {
+          setTimeout(() => {
+            setIsProcessingPDF(false);
+            setProcessingProgress(0);
+          }, 500);
+        }
+      } else {
+        alert("Please upload a PDF file");
       }
-    } else {
-      alert("Please upload a PDF file");
-    }
-  }, []);
+    },
+    []
+  );
 
   // Slide management
   const updateSlideTitle = (index: number, title: string) => {
@@ -55,21 +62,44 @@ export default function App() {
     );
   };
 
-  const updateSlideBulletPoint = (
+  const updateSlideBullets = (index: number, bullets: string[]) => {
+    setSlides((prev) =>
+      prev.map((slide, i) =>
+        i === index ? { ...slide, bullets, text_block: undefined } : slide
+      )
+    );
+  };
+
+  const updateSlideTextBlock = (index: number, textBlock: string) => {
+    setSlides((prev) =>
+      prev.map((slide, i) =>
+        i === index
+          ? { ...slide, text_block: textBlock, bullets: undefined }
+          : slide
+      )
+    );
+  };
+
+  const updateSlideContentType = (
     index: number,
-    bulletIndex: number,
-    content: string
+    type: "bullets" | "text_block"
   ) => {
     setSlides((prev) =>
       prev.map((slide, i) => {
         if (i === index) {
-          const newBulletPoints = [...slide.bullets] as [
-            string,
-            string,
-            string
-          ];
-          newBulletPoints[bulletIndex] = content;
-          return { ...slide, bullets: newBulletPoints };
+          if (type === "bullets") {
+            return {
+              ...slide,
+              bullets: slide.bullets || [""],
+              text_block: undefined,
+            };
+          } else {
+            return {
+              ...slide,
+              text_block: slide.text_block || "",
+              bullets: undefined,
+            };
+          }
         }
         return slide;
       })
@@ -79,11 +109,7 @@ export default function App() {
   const addNewSlide = () => {
     const newSlide: Slide = {
       title: "New Slide Title",
-      bullets: [
-        "First bullet point",
-        "Second bullet point",
-        "Third bullet point",
-      ],
+      bullets: ["First bullet point"],
     };
     setSlides((prev) => [...prev, newSlide]);
     setCurrentSlideIndex(slides.length);
@@ -100,11 +126,16 @@ export default function App() {
 
   // Generate PowerPoint
   const handleGeneratePowerPoint = async () => {
+    if (!selectedTheme) {
+      alert("Please select a theme first");
+      return;
+    }
+
     setIsGeneratingPPT(true);
     setGenerationProgress(0);
 
     try {
-      await generatePowerPoint(slides, selectedTheme!, setGenerationProgress);
+      await generatePowerPoint(slides, selectedTheme, setGenerationProgress);
     } catch (error) {
       console.error("Error generating PowerPoint:", error);
     } finally {
@@ -173,12 +204,14 @@ export default function App() {
                   onTitleChange={(title) =>
                     updateSlideTitle(currentSlideIndex, title)
                   }
-                  onBulletPointChange={(bulletIndex, content) =>
-                    updateSlideBulletPoint(
-                      currentSlideIndex,
-                      bulletIndex,
-                      content
-                    )
+                  onBulletsChange={(bullets) =>
+                    updateSlideBullets(currentSlideIndex, bullets)
+                  }
+                  onTextBlockChange={(textBlock) =>
+                    updateSlideTextBlock(currentSlideIndex, textBlock)
+                  }
+                  onContentTypeChange={(type) =>
+                    updateSlideContentType(currentSlideIndex, type)
                   }
                   onPreviousSlide={() =>
                     setCurrentSlideIndex(Math.max(0, currentSlideIndex - 1))
@@ -201,13 +234,14 @@ export default function App() {
                 onThemeSelect={setSelectedTheme}
               />
 
-              <Separator className="my-6" />
+              <Separator className="my-6 dark:bg-slate-700" />
 
               <PowerPointGenerator
                 onGenerate={handleGeneratePowerPoint}
                 isGenerating={isGeneratingPPT}
                 progress={generationProgress}
                 slidesCount={slides.length}
+                selectedTheme={selectedTheme}
               />
             </div>
           </div>
