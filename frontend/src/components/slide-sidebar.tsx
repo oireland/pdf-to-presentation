@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Trash2, List, FileText } from "lucide-react";
+import { Plus, Trash2, List, FileText, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -62,7 +62,7 @@ export function SlideSidebar({
           const contentType = getSlideContentType(slide);
           return (
             <div
-              key={slide.id}
+              key={index}
               className={cn(
                 "relative group cursor-pointer rounded-lg border-2 transition-all",
                 currentSlideIndex === index
@@ -93,23 +93,39 @@ export function SlideSidebar({
                     </Button>
                   )}
                 </div>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-slate-600 dark:text-slate-400 truncate flex-1 mr-2">
+                <div className="space-y-2">
+                  <p
+                    className="text-xs text-slate-600 dark:text-slate-400 truncate"
+                    title={slide.title}
+                  >
                     {slide.title || "Untitled Slide"}
                   </p>
-                  <div className="flex items-center gap-1">
-                    {getContentTypeIcon(contentType)}
-                    <span className="text-xs text-slate-500 dark:text-slate-400">
-                      {getContentTypeLabel(contentType)}
-                    </span>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      {getContentTypeIcon(contentType)}
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        {getContentTypeLabel(contentType)}
+                      </span>
+                    </div>
+
+                    {slide.image_filename && (
+                      <div className="flex items-center gap-1">
+                        <ImageIcon className="h-3 w-3 text-green-600 dark:text-green-400" />
+                        <span className="text-xs text-green-600 dark:text-green-400">
+                          Image
+                        </span>
+                      </div>
+                    )}
                   </div>
+
+                  {contentType === "bullets" && slide.bullets && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {slide.bullets.length} bullet
+                      {slide.bullets.length !== 1 ? "s" : ""}
+                    </p>
+                  )}
                 </div>
-                {contentType === "bullets" && slide.bullets && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    {slide.bullets.length} bullet
-                    {slide.bullets.length !== 1 ? "s" : ""}
-                  </p>
-                )}
               </div>
             </div>
           );

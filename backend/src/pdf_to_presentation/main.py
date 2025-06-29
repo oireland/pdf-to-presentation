@@ -69,7 +69,7 @@ except ValueError as e:
 
 # --- Helper Functions ---
 
-def extract_text_and_images_from_pdf(pdf_content: bytes) -> (str, List[dict]):
+def extract_text_and_images_from_pdf(pdf_content: bytes) -> tuple[str, List[dict]]:
     full_text = ""
     images = []
     with fitz.open(stream=pdf_content, filetype="pdf") as doc:
@@ -322,8 +322,7 @@ def create_presentation(slide_data: List[Slide], theme_type: str, theme_name: st
         if theme and theme_type == "background":
             image_path = os.path.join(os.path.dirname(__file__), "backgrounds", theme["image_filename"])
             if os.path.exists(image_path):
-                slide.background.fill.solid()
-                slide.background.fill.picture(image_path)
+                set_slide_background_image(prs, slide, image_path)
             else:
                 print(f"Warning: Background image not found at {image_path}")
 

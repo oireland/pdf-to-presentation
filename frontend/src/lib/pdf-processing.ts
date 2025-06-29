@@ -1,7 +1,70 @@
 import type { Slide } from "@/types/slide";
 import type { SelectedTheme } from "@/types/theme.ts";
 
-const MOCK_DATA = true;
+const MOCK_PROCESS_PDF = true;
+const mockProcessPDFResponse = [
+  {
+    title: "Q2 2025 Performance Overview: Introduction",
+    bullets: [
+      "Comprehensive overview of Q2 2025 performance (April 1st - June 30th)",
+      "Key financial metrics, operational achievements, and strategic initiatives examined",
+      "Visual aids highlight significant trends and data points",
+      "Focus on progress and identifying areas for future growth",
+    ],
+  },
+  {
+    title: "Section 1: Financial Highlights",
+    bullets: [
+      "15% revenue increase compared to Q1",
+      "Strong sales in emerging markets",
+      "Stable profit margins due to cost management and operational efficiencies",
+      "Total Revenue: $12.5 million, Net Profit: $2.1 million, Operating Expenses: $8.8 million",
+    ],
+    image_filename: "image_1_1_6c468449-138a-4d7e-82df-8d5d1795d444.png",
+  },
+  {
+    title: "Revenue Growth by Segment",
+    bullets: [],
+    text_block:
+      "This slide showcases a visual representation (likely a chart or graph) of the breakdown of Q2 revenue across primary business segments.  It highlights the significant contribution from new product lines, indicating successful product launches and market penetration.",
+  },
+  {
+    title: "Section 2: Operational Achievements",
+    bullets: [
+      "Improved efficiency and expanded reach",
+      "Successful rollout of Project Horizon streamlined the supply chain, reducing delivery times by 10%",
+      "Customer satisfaction reached an all-time high of 8.9/10",
+    ],
+    image_filename: "image_2_1_f38e8fe4-20b6-4ef8-a59e-41e1dc4ddbb0.png",
+  },
+  {
+    title: "Project Horizon Implementation",
+    bullets: [],
+    text_block:
+      "This slide presents a visual (likely a chart) illustrating the reduction in average delivery time before and after implementing Project Horizon.  The data clearly demonstrates the project's success in improving supply chain efficiency.",
+  },
+  {
+    title: "Section 3: Market Presence and Future Outlook",
+    bullets: [
+      "Expanded market share, particularly in Southeast Asia (20% increase in new customers)",
+      "Continued investment in R&D to maintain a competitive edge",
+      "Positive Q3 outlook with projections indicating continued growth and market penetration",
+    ],
+    image_filename: "image_3_1_44ec62af-d485-41e1-a6fc-5ac16f566a4a.png",
+  },
+  {
+    title: "Global Market Expansion",
+    bullets: [],
+    text_block:
+      "This slide displays a geographical map highlighting the company's expanded market presence and strategic growth areas.  It visually represents the company's successful international expansion and identifies key regions for future development.",
+  },
+  {
+    title: "Conclusion: Q2 2025 - A Successful Quarter",
+    bullets: [],
+    text_block:
+      "Q2 2025 demonstrated robust financial health, improved operational efficiencies, and expanding market reach.  These achievements provide a strong foundation for continued growth and success in future quarters.  The company is well-positioned for sustained progress.",
+  },
+];
 
 export const processPDF = async (
   file: File,
@@ -10,7 +73,6 @@ export const processPDF = async (
 ): Promise<Slide[]> => {
   let currentProgress = 0;
   const progressInterval = setInterval(() => {
-    // Don't let the simulated progress exceed 90% before the API call finishes
     if (currentProgress < 90) {
       currentProgress += 10;
       onProgress(currentProgress);
@@ -18,60 +80,20 @@ export const processPDF = async (
   }, 200);
 
   try {
-    // Prepare form data for API call
+    if (MOCK_PROCESS_PDF) {
+      return mockProcessPDFResponse;
+    }
+
     const formData = new FormData();
     formData.append("file", file);
     formData.append("detail_level", detailLevel.toString());
 
-    // MOCK
-    if (MOCK_DATA) {
-      return [
-        {
-          title: "Occam's Razor: Introduction",
-          bullets: [
-            "Problem-solving principle attributed to William of Ockham.",
-            "Choose the hypothesis with fewest assumptions.",
-            "The simplest explanation is usually the best.",
-          ],
-        },
-        {
-          title: "The Principle Explained: Shaving Away Assumptions",
-          text_block:
-            "Occam's Razor is a heuristic, not an irrefutable law. It suggests 'shaving away' unnecessary assumptions in theories. Simpler theories are preferable because they are more testable and easier to falsify, leading to more efficient problem-solving.",
-        },
-        {
-          title: "Application: The Case of the Missing Cookies",
-          bullets: [
-            "Hypothesis A: Roommate ate the cookies (simple).",
-            "Hypothesis B: International spies stole cookies (complex).",
-            "Occam's Razor favors Hypothesis A.",
-            "Fewer assumptions make it the more plausible start",
-          ],
-        },
-        {
-          title: "Occam's Razor: A Valuable Tool",
-          bullets: [
-            "Encourages clarity and simplicity in thinking.",
-            "Favors evidence-based explanations.",
-            "Rational starting point for investigation.",
-          ],
-        },
-        {
-          title: "Conclusion: Simplicity as a Starting Point",
-          text_block:
-            "While the simplest answer isn't always right, Occam's Razor encourages us to start with the most rational and evidence-supported explanation. This approach helps to streamline problem-solving and avoid unnecessary complexity in our reasoning processes.",
-        },
-      ];
-    }
-    // END MOCK
-
-    const response = await fetch(
-      "http://127.0.0.1:8000/api/generate-slide-content",
-      {
-        method: "POST",
-        body: formData,
-      }
-    );
+    // Use a relative path. The Vite proxy will handle forwarding this
+    // to http://127.0.0.1:8000 during development.
+    const response = await fetch("/api/generate-slide-content", {
+      method: "POST",
+      body: formData,
+    });
 
     if (!response.ok) {
       throw new Error(
@@ -81,18 +103,15 @@ export const processPDF = async (
 
     const extractedSlides: Slide[] = (await response.json()).slides;
 
-    // On success, clear the interval and jump progress to 100%
     clearInterval(progressInterval);
     onProgress(100);
 
     return extractedSlides;
   } catch (error) {
     console.error("Error processing PDF:", error);
-    onProgress(0); // Optionally reset progress on error
-    throw error; // Re-throw the error for the calling component to handle
+    onProgress(0);
+    throw error;
   } finally {
-    // The finally block is a safety net to ensure the interval is always cleared,
-    // regardless of success or failure.
     clearInterval(progressInterval);
   }
 };
@@ -104,7 +123,6 @@ export const generatePowerPoint = async (
 ): Promise<void> => {
   let currentProgress = 0;
   const progressInterval = setInterval(() => {
-    // Simulate progress, stopping at 90% to wait for the API
     if (currentProgress < 90) {
       currentProgress += 15;
       onProgress(currentProgress);
@@ -112,27 +130,20 @@ export const generatePowerPoint = async (
   }, 300);
 
   try {
-    // --- Start of Updated Section ---
+    // Use a relative path here as well.
+    const response = await fetch("/api/generate-presentation", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        slides: slides,
+        theme_type: theme.type,
+        theme_name: theme.name,
+      }),
+    });
 
-    // Call your actual API endpoint to generate the presentation
-    const response = await fetch(
-      "http://127.0.0.1:8000/api/generate-presentation",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          slides: slides,
-          theme_type: theme.type,
-          theme_name: theme.name,
-        }),
-      }
-    );
-
-    // Check if the API request was successful
     if (!response.ok) {
-      // Try to parse error details from the response body if available
       const errorText = await response.text();
       throw new Error(
         `API request failed with status ${response.status}: ${
@@ -141,32 +152,24 @@ export const generatePowerPoint = async (
       );
     }
 
-    // The API response is the actual file data (blob)
     const blob = await response.blob();
-
-    // On success, stop the progress simulation and set to 100%
     clearInterval(progressInterval);
     onProgress(100);
 
-    // Create a temporary URL for the blob and trigger the download
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", "presentation.pptx"); // Set the desired filename
+    link.setAttribute("download", "presentation.pptx");
     document.body.appendChild(link);
     link.click();
 
-    // Clean up by removing the link and revoking the object URL
     link.parentNode?.removeChild(link);
     window.URL.revokeObjectURL(url);
-
-    // --- End of Updated Section ---
   } catch (error) {
     console.error("Error generating PowerPoint:", error);
-    onProgress(0); // Reset progress on error
-    throw error; // Re-throw so the calling component can handle it
+    onProgress(0);
+    throw error;
   } finally {
-    // Safety net to ensure the interval is always cleared
     clearInterval(progressInterval);
   }
 };

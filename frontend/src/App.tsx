@@ -80,6 +80,14 @@ export default function App() {
     );
   };
 
+  const removeSlideImage = (index: number) => {
+    setSlides((prev) =>
+      prev.map((slide, i) =>
+        i === index ? { ...slide, image_filename: undefined } : slide
+      )
+    );
+  };
+
   const updateSlideContentType = (
     index: number,
     type: "bullets" | "text_block"
@@ -210,6 +218,7 @@ export default function App() {
                   onTextBlockChange={(textBlock) =>
                     updateSlideTextBlock(currentSlideIndex, textBlock)
                   }
+                  onImageRemove={() => removeSlideImage(currentSlideIndex)}
                   onContentTypeChange={(type) =>
                     updateSlideContentType(currentSlideIndex, type)
                   }
