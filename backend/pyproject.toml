@@ -1,0 +1,17 @@
+[project]
+name = "pdf_to_presentation"
+version = "0.1.0"
+description = "Backend for the PDF to Presentation application."
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "python-multipart",
+    "google-generativeai",
+    "python-pptx",
+    "PyMuPDF",
+    "Pillow",
+    "python-dotenv"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]  # Look for packages in the src directory
