@@ -348,12 +348,35 @@ async def generate_slide_content(file: UploadFile = File(...), detail_level: int
 
 @app.post("/api/generate-presentation")
 async def generate_presentation_endpoint(presentation_content: PresentationContent):
+    """
+    Receives slide content and a theme, creates a PowerPoint,
+    and returns it as a downloadable file.
+
+    Cleans up the images used in the presentation
+    after it has been successfully generated.
+    """
     try:
+        # 1. Create the presentation in memory
         pptx_file_stream = create_presentation(
             slide_data=presentation_content.slides,
             theme_type=presentation_content.theme_type,
             theme_name=presentation_content.theme_name
         )
+
+        # 2. After successful creation, clean up the used image files
+        print("Presentation created. Cleaning up used image files...")
+        for slide in presentation_content.slides:
+            if slide.image_filename:
+                image_path = os.path.join("extracted_images", slide.image_filename)
+                if os.path.exists(image_path):
+                    try:
+                        os.remove(image_path)
+                        print(f"Successfully deleted {image_path}")
+                    except OSError as e:
+                        # Log the error but don't fail the request
+                        print(f"Error deleting file {image_path}: {e}")
+
+        # 3. Return the generated presentation to the user
         return StreamingResponse(
             pptx_file_stream,
             media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",

@@ -33,87 +33,13 @@ Content-Disposition: form-data; name="detail_level"
 # to the backend to generate a .pptx file.
 #
 # IMPORTANT:
-# - Replace the `image_filename` with a filename you received from the "Generate Slide Content" request above.
+# - Replace the "slides" with one returned by the request above
 # - You can change `theme_type` to "background" and `theme_name` to one of the configured background themes (e.g., "blue_gradient").
 POST {{api}}/api/generate-presentation
 Content-Type: application/json
 
 {
-    "slides": [
-    {
-      "title": "Q2 2025 Performance Overview: Introduction",
-      "bullets": [
-        "Comprehensive overview of Q2 2025 performance (April 1st - June 30th)",
-        "Key financial metrics, operational achievements, and strategic initiatives analyzed",
-        "Visual aids highlighting significant trends and data points",
-        "Focus on progress and areas for future growth"
-      ],
-      "text_block": null,
-      "image_filename": null
-    },
-    {
-      "title": "Section 1: Financial Highlights",
-      "bullets": [
-        "15% revenue increase compared to Q1, driven by strong sales in emerging markets",
-        "Stable profit margins due to effective cost management and operational efficiencies",
-        "Total Revenue: $12.5 million",
-        "Net Profit: $2.1 million",
-        "Operating Expenses: $8.8 million"
-      ],
-      "text_block": null,
-      "image_filename": "image_1_1_8adcded3-0eec-4f39-a8bf-439aa702138e.png"
-    },
-    {
-      "title": "Revenue Growth by Segment",
-      "bullets": [],
-      "text_block": "This slide will visually represent the breakdown of Q2 revenue across primary business segments, showcasing the significant contribution from new product lines.  The image will highlight key revenue streams and their relative contributions to overall performance.",
-      "image_filename": "image_1_1_8adcded3-0eec-4f39-a8bf-439aa702138e.png"
-    },
-    {
-      "title": "Section 2: Operational Achievements",
-      "bullets": [
-        "Successful rollout of Project Horizon streamlined the supply chain",
-        "10% reduction in average delivery times",
-        "Customer satisfaction reached an all-time high of 8.9 out of 10",
-        "Improved efficiency and expanded reach"
-      ],
-      "text_block": null,
-      "image_filename": "image_2_1_7439878c-6589-4859-b8da-adcd884c9a34.png"
-    },
-    {
-      "title": "Project Horizon Implementation",
-      "bullets": [],
-      "text_block": "This slide displays a chart illustrating the reduction in average delivery time before and after the implementation of Project Horizon, visually demonstrating the positive impact on operational efficiency.",
-      "image_filename": "image_2_1_7439878c-6589-4859-b8da-adcd884c9a34.png"
-    },
-    {
-      "title": "Section 3: Market Presence and Future Outlook",
-      "bullets": [
-        "Expanded market share in key regions, particularly Southeast Asia (20% increase in new customer acquisition)",
-        "Continued investment in R&D to maintain competitive edge",
-        "Positive Q3 outlook with projections indicating continued growth and market penetration",
-        "Strategic growth areas identified"
-      ],
-      "text_block": null,
-      "image_filename": "image_3_1_5b62c6f3-9d27-403f-b828-4a26d8e54704.png"
-    },
-    {
-      "title": "Global Market Expansion",
-      "bullets": [],
-      "text_block": "This slide presents a geographical map highlighting our expanded market presence and strategic growth areas, visualizing our global reach and expansion strategy.",
-      "image_filename": "image_3_1_5b62c6f3-9d27-403f-b828-4a26d8e54704.png"
-    },
-    {
-      "title": "Conclusion: Q2 2025 - A Period of Growth",
-      "bullets": [
-        "Robust financial health",
-        "Improving operational efficiencies",
-        "Expanding market reach",
-        "Strong foundation for sustained growth in future quarters"
-      ],
-      "text_block": null,
-      "image_filename": null
-    }
+  "slides": [
   ],
   "theme_type": "color",
   "theme_name": "professional_gray"
