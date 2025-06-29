@@ -12,6 +12,7 @@ import { processPDF, generatePowerPoint } from "@/lib/pdf-processing";
 import type { Slide } from "@/types/slide";
 import type { SelectedTheme } from "@/types/theme";
 import { ModeToggle } from "./components/mode-toggle";
+import { DownloadSuccess } from "./components/download-success";
 
 export default function App() {
   const [slides, setSlides] = useState<Slide[]>([]);
@@ -21,6 +22,7 @@ export default function App() {
   );
   const [isProcessingPDF, setIsProcessingPDF] = useState(false);
   const [isGeneratingPPT, setIsGeneratingPPT] = useState(false);
+  const [showDownloadSuccess, setShowDownloadSuccess] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -31,6 +33,7 @@ export default function App() {
       if (file.type === "application/pdf") {
         setIsProcessingPDF(true);
         setProcessingProgress(0);
+        setShowDownloadSuccess(false);
 
         try {
           const extractedSlides = await processPDF(
@@ -141,9 +144,11 @@ export default function App() {
 
     setIsGeneratingPPT(true);
     setGenerationProgress(0);
+    setShowDownloadSuccess(false);
 
     try {
       await generatePowerPoint(slides, selectedTheme, setGenerationProgress);
+      setShowDownloadSuccess(true);
     } catch (error) {
       console.error("Error generating PowerPoint:", error);
     } finally {
@@ -152,6 +157,19 @@ export default function App() {
         setGenerationProgress(0);
       }, 1000);
     }
+  };
+
+  // Handle reload functionality
+  const handleReload = () => {
+    setSlides([]);
+    setCurrentSlideIndex(0);
+    setSelectedTheme(null);
+    setShowDownloadSuccess(false);
+    setIsProcessingPDF(false);
+    setIsGeneratingPPT(false);
+    setProcessingProgress(0);
+    setGenerationProgress(0);
+    setIsDragOver(false);
   };
 
   const currentSlide = slides[currentSlideIndex];
@@ -174,8 +192,15 @@ export default function App() {
           </div>
         </div>
 
+        {/* Download Success Message */}
+        {showDownloadSuccess && (
+          <div className="mb-8">
+            <DownloadSuccess onReload={handleReload} />
+          </div>
+        )}
+
         {/* Upload Area */}
-        {slides.length === 0 && !isProcessingPDF && (
+        {slides.length === 0 && !isProcessingPDF && !showDownloadSuccess && (
           <UploadArea
             onFileUpload={handleFileUpload}
             isDragOver={isDragOver}
@@ -189,7 +214,7 @@ export default function App() {
         )}
 
         {/* Main Editor */}
-        {slides.length > 0 && !isProcessingPDF && (
+        {slides.length > 0 && !isProcessingPDF && !showDownloadSuccess && (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Slide Sidebar */}
             <div className="lg:col-span-1">
